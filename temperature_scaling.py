@@ -35,22 +35,28 @@ class ModelWithTemperature(nn.Module):
         We're going to set it to optimize NLL.
         valid_loader (DataLoader): validation set loader
         """
-        self.cuda()
-        nll_criterion = nn.CrossEntropyLoss().cuda()
-        ece_criterion = _ECELoss().cuda()
+        nll_criterion = nn.CrossEntropyLoss()
+        ece_criterion = _ECELoss()
+        if torch.cuda.is_available():
+            self.cuda()
+            nll_criterion = nll_criterion.cuda()
+            ece_criterion = ece_criterion.cuda()
 
         # First: collect all the logits and labels for the validation set
         logits_list = []
         labels_list = []
         with torch.no_grad():
             for input, label in valid_loader:
-                input = input.cuda()
+                if torch.cuda.is_available():
+                    input = input.cuda()
                 logits = self.model(input)
                 logits_list.append(logits)
                 labels_list.append(label)
-            logits = torch.cat(logits_list).cuda()
-            labels = torch.cat(labels_list).cuda()
-
+            logits = torch.cat(logits_list)
+            labels = torch.cat(labels_list)
+            if torch.cuda.is_available():
+                logits = logits.cuda()
+                labels = labels.cuda()
         # Calculate NLL and ECE before temperature scaling
         before_temperature_nll = nll_criterion(logits, labels).item()
         before_temperature_ece = ece_criterion(logits, labels).item()
